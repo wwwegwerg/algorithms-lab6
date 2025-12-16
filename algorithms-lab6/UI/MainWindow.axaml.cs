@@ -5,7 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using algorithms_lab6.Charts;
 
-namespace algorithms_lab6;
+namespace algorithms_lab6.UI;
 
 public partial class MainWindow : Window {
     private bool _run;

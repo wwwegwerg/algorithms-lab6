@@ -4,7 +4,7 @@ using Avalonia.Markup.Xaml;
 using AvaloniaWebView;
 using algorithms_lab6.Charts;
 
-namespace algorithms_lab6;
+namespace algorithms_lab6.UI;
 
 public partial class App : Application {
     public override void Initialize() {

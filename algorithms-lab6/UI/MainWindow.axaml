@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
-        x:Class="algorithms_lab6.MainWindow"
+        x:Class="algorithms_lab6.UI.MainWindow"
         Title="algorithms_lab6">
     <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="*,Auto" Margin="12">
         <ComboBox x:Name="ChartComboBox"

@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.WebView.Desktop;
 using System;
 
-namespace algorithms_lab6;
+namespace algorithms_lab6.UI;
 
 class Program {
     // Initialization code. Don't use any Avalonia, third-party APIs or any
