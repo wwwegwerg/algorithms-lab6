@@ -128,4 +128,45 @@ public class OpenAddressingHashTable<K, V> {
 
         return false;
     }
+
+    public int GetMaxClusterLength() {
+        if (Count == 0) {
+            return 0;
+        }
+
+        if (Count == Capacity) {
+            return Capacity;
+        }
+
+        var start = -1;
+        for (var i = 0; i < Capacity; i++) {
+            if (_states[i] != SlotState.Occupied) {
+                start = i;
+                break;
+            }
+        }
+
+        if (start < 0) {
+            return Capacity;
+        }
+
+        var max = 0;
+        var current = 0;
+
+        for (var step = 1; step <= Capacity; step++) {
+            var idx = (start + step) % Capacity;
+            if (_states[idx] == SlotState.Occupied) {
+                current++;
+                if (current > max) {
+                    max = current;
+                }
+
+                continue;
+            }
+
+            current = 0;
+        }
+
+        return max;
+    }
 }
