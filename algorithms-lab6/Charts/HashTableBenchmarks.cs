@@ -12,55 +12,63 @@ public static class HashTableBenchmarks {
         int Seed = 42
     );
 
+    private sealed record ChartDef(Func<Config, string> Title, Func<Config, ChartData> Run);
+
+    private static IReadOnlyList<ChartDef> Defs => [
+        new(
+            c => $"Генерация {c.ElementCount:N0} ключей",
+            Gen
+        ),
+        new(
+            c => $"Вставка {c.ElementCount:N0} элементов",
+            Ins
+        ),
+        new(
+            c => $"Коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)",
+            Lf
+        ),
+        new(
+            c => $"Средний коэффициент заполнения α (по {c.Trials} прогонам)",
+            LfAvg
+        ),
+        new(
+            c => $"Максимальная длина цепочки ({c.ElementCount:N0} элементов)",
+            Max
+        ),
+        new(
+            _ => "Минимальная длина цепочки (включая пустые ячейки)",
+            Min0
+        ),
+        new(
+            _ => "Минимальная длина цепочки (без пустых ячеек)",
+            Min1
+        )
+    ];
+
     public static IReadOnlyList<string> GetChartTitles(Config? config = null) {
         var c = config ?? new Config();
-        var a = $"Генерация {c.ElementCount:N0} ключей";
-        var b = $"Вставка {c.ElementCount:N0} элементов";
-        var c3 = $"Коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)";
-        var d = $"Средний коэффициент заполнения α (по {c.Trials} прогонам)";
-        var e = $"Максимальная длина цепочки ({c.ElementCount:N0} элементов)";
-        var f = "Минимальная длина цепочки (включая пустые ячейки)";
-        var g = "Минимальная длина цепочки (без пустых ячеек)";
-        return [a, b, c3, d, e, f, g];
+        var a = Defs;
+        var r = new string[a.Count];
+
+        for (var i = 0; i < r.Length; i++) {
+            r[i] = a[i].Title(c);
+        }
+
+        return r;
     }
 
     public static ChartData Build(string title, Config? config = null) {
         var c = config ?? new Config();
         Check(c);
 
-        var a = $"Генерация {c.ElementCount:N0} ключей";
-        if (title == a) {
-            return Gen(c);
-        }
+        var a = Defs;
+        for (var i = 0; i < a.Count; i++) {
+            var d = a[i];
+            if (d.Title(c) != title) {
+                continue;
+            }
 
-        var b = $"Вставка {c.ElementCount:N0} элементов";
-        if (title == b) {
-            return Ins(c);
-        }
-
-        var c3 = $"Коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)";
-        if (title == c3) {
-            return Lf(c);
-        }
-
-        var d = $"Средний коэффициент заполнения α (по {c.Trials} прогонам)";
-        if (title == d) {
-            return LfAvg(c);
-        }
-
-        var e = $"Максимальная длина цепочки ({c.ElementCount:N0} элементов)";
-        if (title == e) {
-            return Max(c);
-        }
-
-        var f = "Минимальная длина цепочки (включая пустые ячейки)";
-        if (title == f) {
-            return Min0(c);
-        }
-
-        var g = "Минимальная длина цепочки (без пустых ячеек)";
-        if (title == g) {
-            return Min1(c);
+            return d.Run(c);
         }
 
         throw new ArgumentOutOfRangeException(nameof(title), "Unknown chart title.");
@@ -75,11 +83,9 @@ public static class HashTableBenchmarks {
             throw new ArgumentOutOfRangeException(nameof(c.Capacity), "Capacity must be positive.");
         }
 
-
         if (c.Trials <= 0) {
             throw new ArgumentOutOfRangeException(nameof(c.Trials), "Trials must be positive.");
         }
-
     }
 
     private static ChartData Gen(Config c) {
