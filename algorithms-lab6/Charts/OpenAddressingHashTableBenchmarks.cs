@@ -29,6 +29,14 @@ public static class OpenAddressingHashTableBenchmarks {
         new(
             "Двойное (h1=деление, h2=умножение)",
             () => new DoubleHashingStrategy<int>(new DivisionHashStrategy(), new MultiplicationHashStrategy())
+        ),
+        new(
+            "Псевдослучайное (h'=деление)",
+            () => new PseudoRandomProbingStrategy<int>(new DivisionHashStrategy())
+        ),
+        new(
+            "Квадратичное + сдвиг shift=7 (h'=деление)",
+            () => new QuadraticShiftProbingStrategy<int>(new DivisionHashStrategy(), shift: 7)
         )
     ];
 

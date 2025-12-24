@@ -14,33 +14,43 @@ public static class ChainedHashTableBenchmarks {
 
     private sealed record ChartDef(Func<Config, string> Title, Func<Config, ChartData> Run);
 
+    private sealed record HashCase(string Name, Func<IHashStrategy<int>> Hash);
+
+    private static IReadOnlyList<HashCase> HashCases => [
+        new("Деление", () => new DivisionHashStrategy()),
+        new("Умножение", () => new MultiplicationHashStrategy()),
+        new("BitMix", () => new BitMixHashStrategy()),
+        new("FNV-like", () => new FnvLikeHashStrategy()),
+        new("XorShift", () => new XorShiftHashStrategy())
+    ];
+
     private static IReadOnlyList<ChartDef> Defs => [
         new(
-            c => $"Генерация {c.ElementCount:N0} ключей",
+            c => $"Цепочки: генерация {c.ElementCount:N0} ключей",
             Gen
         ),
         new(
-            c => $"Вставка {c.ElementCount:N0} элементов",
+            c => $"Цепочки: вставка {c.ElementCount:N0} элементов",
             Ins
         ),
         new(
-            c => $"Коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)",
+            c => $"Цепочки: коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)",
             Lf
         ),
         new(
-            c => $"Средний коэффициент заполнения α (по {c.Trials} прогонам)",
+            c => $"Цепочки: средний коэффициент заполнения α (по {c.Trials} прогонам)",
             LfAvg
         ),
         new(
-            c => $"Максимальная длина цепочки ({c.ElementCount:N0} элементов)",
+            c => $"Цепочки: максимальная длина цепочки ({c.ElementCount:N0} элементов)",
             Max
         ),
         new(
-            _ => "Минимальная длина цепочки (включая пустые ячейки)",
+            _ => "Цепочки: минимальная длина цепочки (включая пустые ячейки)",
             Min0
         ),
         new(
-            _ => "Минимальная длина цепочки (без пустых ячеек)",
+            _ => "Цепочки: минимальная длина цепочки (без пустых ячеек)",
             Min1
         )
     ];
@@ -115,7 +125,7 @@ public static class ChainedHashTableBenchmarks {
         }
 
         return new ChartData(
-            title: $"Генерация {c.ElementCount:N0} ключей",
+            title: $"Цепочки: генерация {c.ElementCount:N0} ключей",
             results: new List<(string, IList<DataPoint>)> { ("Генерация", p) },
             xAxisTitle: "Номер прогона",
             yAxisTitle: "Время, мс",
@@ -126,28 +136,32 @@ public static class ChainedHashTableBenchmarks {
     private static ChartData Ins(Config c) {
         Warm(c);
 
-        var d = new List<DataPoint>(c.Trials);
-        var m = new List<DataPoint>(c.Trials);
+        var cases = HashCases;
+        var series = new List<DataPoint>[cases.Count];
+        for (var i = 0; i < series.Length; i++) {
+            series[i] = new List<DataPoint>(c.Trials);
+        }
+
         double sum = 0;
 
         for (var t = 1; t <= c.Trials; t++) {
             var k = BenchmarkUtils.Keys(c.ElementCount, c.Seed + t);
 
-            var a = InsOnly(new DivisionHashStrategy(), k, c.Capacity);
-            d.Add(new DataPoint(t, a));
-            sum += a;
+            for (var s = 0; s < cases.Count; s++) {
+                var ms = InsOnly(cases[s].Hash(), k, c.Capacity);
+                series[s].Add(new DataPoint(t, ms));
+                sum += ms;
+            }
+        }
 
-            var b = InsOnly(new MultiplicationHashStrategy(), k, c.Capacity);
-            m.Add(new DataPoint(t, b));
-            sum += b;
+        var results = new List<(string, IList<DataPoint>)>(cases.Count);
+        for (var i = 0; i < cases.Count; i++) {
+            results.Add((cases[i].Name, series[i]));
         }
 
         return new ChartData(
-            title: $"Вставка {c.ElementCount:N0} элементов",
-            results: new List<(string, IList<DataPoint>)> {
-                ("Деление", d),
-                ("Умножение", m)
-            },
+            title: $"Цепочки: вставка {c.ElementCount:N0} элементов",
+            results: results,
             xAxisTitle: "Номер прогона",
             yAxisTitle: "Время, мс",
             totalExecTimeSeconds: sum / 1000.0
@@ -157,28 +171,32 @@ public static class ChainedHashTableBenchmarks {
     private static ChartData Lf(Config c) {
         Warm(c);
 
-        var d = new List<DataPoint>(c.Trials);
-        var m = new List<DataPoint>(c.Trials);
+        var cases = HashCases;
+        var series = new List<DataPoint>[cases.Count];
+        for (var i = 0; i < series.Length; i++) {
+            series[i] = new List<DataPoint>(c.Trials);
+        }
+
         double sum = 0;
 
         for (var t = 1; t <= c.Trials; t++) {
             var k = BenchmarkUtils.Keys(c.ElementCount, c.Seed + t);
 
-            var a = LfOnce(new DivisionHashStrategy(), k, c.Capacity);
-            d.Add(new DataPoint(t, a.Lf));
-            sum += a.Ms;
+            for (var s = 0; s < cases.Count; s++) {
+                var a = LfOnce(cases[s].Hash(), k, c.Capacity);
+                series[s].Add(new DataPoint(t, a.Lf));
+                sum += a.Ms;
+            }
+        }
 
-            var b = LfOnce(new MultiplicationHashStrategy(), k, c.Capacity);
-            m.Add(new DataPoint(t, b.Lf));
-            sum += b.Ms;
+        var results = new List<(string, IList<DataPoint>)>(cases.Count);
+        for (var i = 0; i < cases.Count; i++) {
+            results.Add((cases[i].Name, series[i]));
         }
 
         return new ChartData(
-            title: $"Коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)",
-            results: new List<(string, IList<DataPoint>)> {
-                ("Деление", d),
-                ("Умножение", m)
-            },
+            title: $"Цепочки: коэффициент заполнения α = n/m ({c.ElementCount:N0} элементов)",
+            results: results,
             xAxisTitle: "Номер прогона",
             yAxisTitle: "α",
             totalExecTimeSeconds: sum / 1000.0
@@ -188,32 +206,29 @@ public static class ChainedHashTableBenchmarks {
     private static ChartData LfAvg(Config c) {
         Warm(c);
 
+        var cases = HashCases;
+        var avg = new double[cases.Count];
         double sum = 0;
-        double a = 0;
-        double b = 0;
 
         for (var t = 1; t <= c.Trials; t++) {
             var k = BenchmarkUtils.Keys(c.ElementCount, c.Seed + t);
 
-            var d = LfOnce(new DivisionHashStrategy(), k, c.Capacity);
-            a += d.Lf;
-            sum += d.Ms;
-
-            var m = LfOnce(new MultiplicationHashStrategy(), k, c.Capacity);
-            b += m.Lf;
-            sum += m.Ms;
+            for (var s = 0; s < cases.Count; s++) {
+                var d = LfOnce(cases[s].Hash(), k, c.Capacity);
+                avg[s] += d.Lf;
+                sum += d.Ms;
+            }
         }
 
-        a /= c.Trials;
-        b /= c.Trials;
+        var results = new List<(string, IList<DataPoint>)>(cases.Count);
+        for (var i = 0; i < cases.Count; i++) {
+            results.Add((cases[i].Name, new List<DataPoint> { new DataPoint(1, avg[i] / c.Trials) }));
+        }
 
         return new ChartData(
-            title: $"Средний коэффициент заполнения α (по {c.Trials} прогонам)",
-            results: new List<(string, IList<DataPoint>)> {
-                ("Деление", new List<DataPoint> { new DataPoint(1, a) }),
-                ("Умножение", new List<DataPoint> { new DataPoint(1, b) })
-            },
-            xAxisTitle: "Стратегия (1 = среднее)",
+            title: $"Цепочки: средний коэффициент заполнения α (по {c.Trials} прогонам)",
+            results: results,
+            xAxisTitle: "Стратегия (точка = среднее)",
             yAxisTitle: "Средний α",
             totalExecTimeSeconds: sum / 1000.0
         );
@@ -222,28 +237,32 @@ public static class ChainedHashTableBenchmarks {
     private static ChartData Max(Config c) {
         Warm(c);
 
-        var d = new List<DataPoint>(c.Trials);
-        var m = new List<DataPoint>(c.Trials);
+        var cases = HashCases;
+        var series = new List<DataPoint>[cases.Count];
+        for (var i = 0; i < series.Length; i++) {
+            series[i] = new List<DataPoint>(c.Trials);
+        }
+
         double sum = 0;
 
         for (var t = 1; t <= c.Trials; t++) {
             var k = BenchmarkUtils.Keys(c.ElementCount, c.Seed + t);
 
-            var a = Chain(new DivisionHashStrategy(), k, c.Capacity);
-            d.Add(new DataPoint(t, a.Max));
-            sum += a.Ms;
+            for (var s = 0; s < cases.Count; s++) {
+                var a = Chain(cases[s].Hash(), k, c.Capacity);
+                series[s].Add(new DataPoint(t, a.Max));
+                sum += a.Ms;
+            }
+        }
 
-            var b = Chain(new MultiplicationHashStrategy(), k, c.Capacity);
-            m.Add(new DataPoint(t, b.Max));
-            sum += b.Ms;
+        var results = new List<(string, IList<DataPoint>)>(cases.Count);
+        for (var i = 0; i < cases.Count; i++) {
+            results.Add((cases[i].Name, series[i]));
         }
 
         return new ChartData(
-            title: $"Максимальная длина цепочки ({c.ElementCount:N0} элементов)",
-            results: new List<(string, IList<DataPoint>)> {
-                ("Деление", d),
-                ("Умножение", m)
-            },
+            title: $"Цепочки: максимальная длина цепочки ({c.ElementCount:N0} элементов)",
+            results: results,
             xAxisTitle: "Номер прогона",
             yAxisTitle: "Длина цепочки",
             totalExecTimeSeconds: sum / 1000.0
@@ -253,28 +272,32 @@ public static class ChainedHashTableBenchmarks {
     private static ChartData Min0(Config c) {
         Warm(c);
 
-        var d = new List<DataPoint>(c.Trials);
-        var m = new List<DataPoint>(c.Trials);
+        var cases = HashCases;
+        var series = new List<DataPoint>[cases.Count];
+        for (var i = 0; i < series.Length; i++) {
+            series[i] = new List<DataPoint>(c.Trials);
+        }
+
         double sum = 0;
 
         for (var t = 1; t <= c.Trials; t++) {
             var k = BenchmarkUtils.Keys(c.ElementCount, c.Seed + t);
 
-            var a = Chain(new DivisionHashStrategy(), k, c.Capacity);
-            d.Add(new DataPoint(t, a.Min0));
-            sum += a.Ms;
+            for (var s = 0; s < cases.Count; s++) {
+                var a = Chain(cases[s].Hash(), k, c.Capacity);
+                series[s].Add(new DataPoint(t, a.Min0));
+                sum += a.Ms;
+            }
+        }
 
-            var b = Chain(new MultiplicationHashStrategy(), k, c.Capacity);
-            m.Add(new DataPoint(t, b.Min0));
-            sum += b.Ms;
+        var results = new List<(string, IList<DataPoint>)>(cases.Count);
+        for (var i = 0; i < cases.Count; i++) {
+            results.Add((cases[i].Name, series[i]));
         }
 
         return new ChartData(
-            title: "Минимальная длина цепочки (включая пустые ячейки)",
-            results: new List<(string, IList<DataPoint>)> {
-                ("Деление", d),
-                ("Умножение", m)
-            },
+            title: "Цепочки: минимальная длина цепочки (включая пустые ячейки)",
+            results: results,
             xAxisTitle: "Номер прогона",
             yAxisTitle: "Длина цепочки",
             totalExecTimeSeconds: sum / 1000.0
@@ -284,28 +307,32 @@ public static class ChainedHashTableBenchmarks {
     private static ChartData Min1(Config c) {
         Warm(c);
 
-        var d = new List<DataPoint>(c.Trials);
-        var m = new List<DataPoint>(c.Trials);
+        var cases = HashCases;
+        var series = new List<DataPoint>[cases.Count];
+        for (var i = 0; i < series.Length; i++) {
+            series[i] = new List<DataPoint>(c.Trials);
+        }
+
         double sum = 0;
 
         for (var t = 1; t <= c.Trials; t++) {
             var k = BenchmarkUtils.Keys(c.ElementCount, c.Seed + t);
 
-            var a = Chain(new DivisionHashStrategy(), k, c.Capacity);
-            d.Add(new DataPoint(t, a.Min1));
-            sum += a.Ms;
+            for (var s = 0; s < cases.Count; s++) {
+                var a = Chain(cases[s].Hash(), k, c.Capacity);
+                series[s].Add(new DataPoint(t, a.Min1));
+                sum += a.Ms;
+            }
+        }
 
-            var b = Chain(new MultiplicationHashStrategy(), k, c.Capacity);
-            m.Add(new DataPoint(t, b.Min1));
-            sum += b.Ms;
+        var results = new List<(string, IList<DataPoint>)>(cases.Count);
+        for (var i = 0; i < cases.Count; i++) {
+            results.Add((cases[i].Name, series[i]));
         }
 
         return new ChartData(
-            title: "Минимальная длина цепочки (без пустых ячеек)",
-            results: new List<(string, IList<DataPoint>)> {
-                ("Деление", d),
-                ("Умножение", m)
-            },
+            title: "Цепочки: минимальная длина цепочки (без пустых ячеек)",
+            results: results,
             xAxisTitle: "Номер прогона",
             yAxisTitle: "Длина цепочки",
             totalExecTimeSeconds: sum / 1000.0
@@ -319,8 +346,11 @@ public static class ChainedHashTableBenchmarks {
         }
 
         var k = BenchmarkUtils.Keys(w, c.Seed);
-        _ = LfOnce(new DivisionHashStrategy(), k, c.Capacity);
-        _ = LfOnce(new MultiplicationHashStrategy(), k, c.Capacity);
+        var cases = HashCases;
+
+        for (var i = 0; i < cases.Count; i++) {
+            _ = LfOnce(cases[i].Hash(), k, c.Capacity);
+        }
     }
 
     private static double InsOnly(IHashStrategy<int> s, int[] k, int cap) {
